@@ -19,6 +19,7 @@ type Model struct {
 	visible       []int
 	selected      map[string]bool
 	cursor        int
+	offset        int // first visible index into m.visible (viewport scroll)
 	filter        string
 	filterMode    bool
 	filterInput   textinput.Model
@@ -53,13 +54,51 @@ func Run(branches []git.Branch, defaultBranch string) error {
 	return err
 }
 
-// refilter recomputes the visible slice and clamps cursor.
+// refilter recomputes the visible slice, clamps cursor, and adjusts viewport.
 func (m Model) refilter() Model {
 	m.visible = filterBranches(m.branches, m.filter, m.onlyMerged, m.onlyOlderDays)
 	if len(m.visible) == 0 {
 		m.cursor = 0
 	} else if m.cursor >= len(m.visible) {
 		m.cursor = len(m.visible) - 1
+	}
+	return m.adjustViewport()
+}
+
+const chromeRows = 12
+
+func (m Model) listRows() int {
+	if m.height <= 0 {
+		return len(m.visible)
+	}
+	r := m.height - chromeRows
+	if r < 3 {
+		r = 3
+	}
+	return r
+}
+
+func (m Model) adjustViewport() Model {
+	rows := m.listRows()
+	if len(m.visible) == 0 {
+		m.offset = 0
+		return m
+	}
+	if m.cursor < m.offset {
+		m.offset = m.cursor
+	}
+	if m.cursor >= m.offset+rows {
+		m.offset = m.cursor - rows + 1
+	}
+	maxOffset := len(m.visible) - rows
+	if maxOffset < 0 {
+		maxOffset = 0
+	}
+	if m.offset > maxOffset {
+		m.offset = maxOffset
+	}
+	if m.offset < 0 {
+		m.offset = 0
 	}
 	return m
 }
@@ -77,6 +116,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		m = m.adjustViewport()
 
 	case tea.KeyMsg:
 		switch {
@@ -85,10 +125,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keys.Up):
 			if m.cursor > 0 {
 				m.cursor--
+				m = m.adjustViewport()
 			}
 		case key.Matches(msg, keys.Down):
 			if m.cursor < len(m.visible)-1 {
 				m.cursor++
+				m = m.adjustViewport()
 			}
 		case key.Matches(msg, keys.Toggle):
 			m = m.toggleCurrent()
@@ -315,13 +357,25 @@ func (m Model) View() string {
 	)))
 	sb.WriteString("\n\n")
 
-	// Branch rows
-	for j, i := range m.visible {
+	// Branch rows (windowed viewport)
+	rows := m.listRows()
+	end := m.offset + rows
+	if end > len(m.visible) {
+		end = len(m.visible)
+	}
+	for j := m.offset; j < end; j++ {
+		i := m.visible[j]
 		sb.WriteString(m.renderRow(m.branches[i], j == m.cursor))
 		sb.WriteString("\n")
 	}
 	if len(m.visible) == 0 {
 		sb.WriteString(styleHelp.Render("  (no branches match filters)"))
+		sb.WriteString("\n")
+	}
+	if len(m.visible) > 0 && (m.offset > 0 || end < len(m.visible)) {
+		sb.WriteString(styleHelp.Render(fmt.Sprintf(
+			"  showing %d–%d of %d", m.offset+1, end, len(m.visible),
+		)))
 		sb.WriteString("\n")
 	}
 
