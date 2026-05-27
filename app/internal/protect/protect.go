@@ -3,7 +3,7 @@ package protect
 import (
 	"strings"
 
-	"gonsai/internal/git"
+	"gonsai/app/internal/git"
 )
 
 var fallbackDefaults = []string{"main", "master", "develop"}

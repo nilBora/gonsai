@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"gonsai/internal/git"
+	"gonsai/app/internal/git"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
