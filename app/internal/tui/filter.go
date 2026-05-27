@@ -3,7 +3,7 @@ package tui
 import (
 	"time"
 
-	"gonsai/internal/git"
+	"gonsai/app/internal/git"
 
 	"github.com/sahilm/fuzzy"
 )

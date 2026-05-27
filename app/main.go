@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"gonsai/internal/git"
-	"gonsai/internal/protect"
-	"gonsai/internal/tui"
+	"gonsai/app/internal/git"
+	"gonsai/app/internal/protect"
+	"gonsai/app/internal/tui"
 
 	"github.com/charmbracelet/lipgloss"
 )

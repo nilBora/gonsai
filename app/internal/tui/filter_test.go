@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"gonsai/internal/git"
+	"gonsai/app/internal/git"
 )
 
 func testBranches() []git.Branch {
