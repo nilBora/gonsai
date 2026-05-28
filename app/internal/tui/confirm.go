@@ -6,7 +6,6 @@ import (
 
 	"gonsai/app/internal/git"
 
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -14,29 +13,31 @@ import (
 type confirmState struct {
 	safe     []git.Branch
 	unmerged []git.Branch
-	input    textinput.Model
+	choice   int // 0 = Yes (force-delete), 1 = No (cancel)
 }
 
-// newConfirmState creates a focused confirmation dialog for the given branch sets.
+// newConfirmState creates a confirmation dialog defaulting to Yes.
 func newConfirmState(safe, unmerged []git.Branch) confirmState {
-	ti := textinput.New()
-	ti.Placeholder = "yes"
-	ti.CharLimit = 8
-	ti.Focus()
-	return confirmState{safe: safe, unmerged: unmerged, input: ti}
+	return confirmState{safe: safe, unmerged: unmerged, choice: 0}
 }
 
-// update forwards a Bubble Tea message to the textinput.
+// update handles left/right/y/n keys to move the selection.
 func (c confirmState) update(msg tea.Msg) (confirmState, tea.Cmd) {
-	var cmd tea.Cmd
-	c.input, cmd = c.input.Update(msg)
-	return c, cmd
+	kMsg, ok := msg.(tea.KeyMsg)
+	if !ok {
+		return c, nil
+	}
+	switch kMsg.String() {
+	case "left", "h", "y", "Y":
+		c.choice = 0
+	case "right", "l", "n", "N", "tab":
+		c.choice = 1
+	}
+	return c, nil
 }
 
-// confirmed returns true only when the user typed exactly "yes".
-func (c confirmState) confirmed() bool {
-	return strings.TrimSpace(c.input.Value()) == "yes"
-}
+// confirmed returns true when the Yes button is selected.
+func (c confirmState) confirmed() bool { return c.choice == 0 }
 
 // view renders the confirmation dialog box.
 func (c confirmState) view() string {
@@ -44,14 +45,26 @@ func (c confirmState) view() string {
 	for i, b := range c.unmerged {
 		names[i] = "  • " + b.Name
 	}
+
+	var yesBtn, noBtn string
+	if c.choice == 0 {
+		yesBtn = styleSelected.Render("▶ Yes ◀")
+		noBtn = styleHelp.Render("  No  ")
+	} else {
+		yesBtn = styleHelp.Render("  Yes  ")
+		noBtn = styleError.Render("▶ No ◀")
+	}
+
 	body := fmt.Sprintf(
-		"%s\n\n%s\n\nType %s to confirm, or press Esc to cancel:\n\n%s",
+		"%s\n\n%s\n\nForce-delete %d unmerged branch(es)?\n\n  %s    %s\n\n%s",
 		styleUnmerged.Render(fmt.Sprintf(
 			"⚠  %d unmerged branch(es) cannot be safely deleted:", len(c.unmerged),
 		)),
 		styleError.Render(strings.Join(names, "\n")),
-		styleSelected.Render("'yes'"),
-		c.input.View(),
+		len(c.unmerged),
+		yesBtn,
+		noBtn,
+		styleHelp.Render("←/→ choose · enter confirm · esc cancel · y/n shortcut"),
 	)
 	return styleBorder.Render(body)
 }
