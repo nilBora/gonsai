@@ -202,7 +202,7 @@ func (m Model) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.executeDelete(m.confirm.safe, m.confirm.unmerged, true)
 			}
 			m.confirm = nil
-			m.status = styleHelp.Render("Cancelled — type 'yes' to confirm force-delete.")
+			m.status = styleHelp.Render("Delete cancelled.")
 			return m, nil
 		}
 	}
@@ -258,7 +258,7 @@ func (m Model) handleDelete() (tea.Model, tea.Cmd) {
 	if len(unmerged) > 0 {
 		cs := newConfirmState(safe, unmerged)
 		m.confirm = &cs
-		return m, textinput.Blink
+		return m, nil
 	}
 	return m.executeDelete(safe, nil, false)
 }
